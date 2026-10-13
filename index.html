@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM + 庫存即時儀表板</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="topbar">
+<div class="logo">CRM <span>+</span> 庫存即時儀表板</div>
+<div class="sub">左側選單切換，無需登入，內容即時來自 Google 試算表</div>
+<div class="top-right">
+<span id="updateTime">尚未更新</span>
+<select id="autoRef" onchange="setAuto()" title="自動更新">
+<option value="0">不自動更新</option>
+<option value="30">每 30 秒</option>
+<option value="60" selected>每 60 秒</option>
+<option value="300">每 5 分鐘</option>
+</select>
+<button class="btn btn-pink" onclick="loadLive(true)">重新整理</button>
+</div>
+</div>
+<div class="layout">
+<aside class="sidebar">
+<div class="side-group">即時儀表板</div>
+<a class="side-item sub active" id="sideCrm" onclick="switchTab('crm')">CRM 客戶管理</a>
+<a class="side-item sub" id="sideInv" onclick="switchTab('inv')">庫存商品管理</a>
+<div class="side-group">試算表連結</div>
+<a class="side-item" href="https://docs.google.com/spreadsheets/d/1ua-ZeKNme9i70bUn6e36tHe1w1cRVgmx1wPwOT3kV2Y/edit?usp=sharing" target="_blank" rel="noopener">開啟 CRM 試算表 ↗</a>
+<a class="side-item" href="https://docs.google.com/spreadsheets/d/1LIKqruw17RkJ3bgOJ4k78SERh3i17gXPD7OODme4PpE/edit?usp=sharing" target="_blank" rel="noopener">開啟庫存試算表 ↗</a>
+<div class="side-note">點左側選單切換 CRM / 庫存。無需登入，資料即時來自 Google 試算表。</div>
+</aside>
+<div class="main">
+<div class="sources">
+<div class="src-card">
+<div class="t"><span class="dot" id="dotCrm"></span> CRM 表單</div>
+<div class="id">試算表 ID：1ua-ZeKNme9i70bUn6e36tHe1w1cRVgmx1wPwOT3kV2Y</div>
+<div class="row">
+<a class="btn btn-sm" href="https://docs.google.com/spreadsheets/d/1ua-ZeKNme9i70bUn6e36tHe1w1cRVgmx1wPwOT3kV2Y/edit?usp=sharing" target="_blank" rel="noopener">開啟 CRM Google 試算表</a>
+<span id="crmStatus" style="font-size:12px;color:#666">連線中…</span>
+</div>
+</div>
+<div class="src-card inv">
+<div class="t"><span class="dot" id="dotInv"></span> 庫存表單</div>
+<div class="id">試算表 ID：1LIKqruw17RkJ3bgOJ4k78SERh3i17gXPD7OODme4PpE</div>
+<div class="row">
+<a class="btn btn-sm" href="https://docs.google.com/spreadsheets/d/1LIKqruw17RkJ3bgOJ4k78SERh3i17gXPD7OODme4PpE/edit?usp=sharing" target="_blank" rel="noopener">開啟庫存 Google 試算表</a>
+<span id="invStatus" style="font-size:12px;color:#666">連線中…</span>
+</div>
+</div>
+</div>
+<div class="kpis" id="kpis"></div>
+<div class="charts" id="charts"></div>
+<div class="card" id="panelCrm">
+<div class="filter-row">
+<label>產業：<select id="fInd" onchange="applyFilters()"><option value="">全部</option></select></label>
+<label>等級：<select id="fLevel" onchange="applyFilters()"><option value="">全部</option><option>VIP</option><option>A</option><option>B</option><option>C</option></select></label>
+<label>流失風險：<select id="fRisk" onchange="applyFilters()"><option value="">全部</option><option>高</option><option>中</option><option>低</option></select></label>
+<label>只看異常：<input type="checkbox" id="fBad" onchange="applyFilters()"></label>
+<input class="keyword" id="fKw" placeholder="搜尋客戶編號 / 客戶名稱" onkeydown="if(event.key==='Enter')applyFilters()">
+<button class="btn btn-sm btn-yellow" onclick="applyFilters()">搜尋</button>
+<button class="btn btn-sm" onclick="resetFilters()">清除</button>
+</div>
+<div class="table-wrap"><table id="crmTable">
+<thead><tr>
+<th data-k="最後交易日">最後交易日 ▲▼</th><th data-k="產業">產業 / 編號 / 名稱 ▲▼</th><th data-k="交易次數">交易次數 ▲▼</th><th data-k="累積營收">累積營收 ▲▼</th><th data-k="平均客單價">平均客單價 ▲▼</th><th class="nosort">R/F/M</th><th data-k="客戶等級">等級 ▲▼</th><th data-k="流失風險">風險 ▲▼</th><th data-k="負責業務">業務 ▲▼</th><th class="nosort">資料檢查</th>
+</tr></thead><tbody></tbody>
+</table></div>
+<div class="pager"><button class="btn btn-sm" onclick="page(-1)">上一頁</button><span id="pgInfo"></span><button class="btn btn-sm" onclick="page(1)">下一頁</button>
+<select id="pageSize" onchange="renderCrm()"><option>20</option><option>50</option><option>100</option></select></div>
+</div>
+<div class="card inv-head" id="panelInv" style="display:none">
+<div class="filter-row">
+<label>倉庫：<select id="gWh" onchange="applyInvFilters()"><option value="">全部</option></select></label>
+<label>類別：<select id="gCat" onchange="applyInvFilters()"><option value="">全部</option></select></label>
+<label>缺貨風險：<select id="gRisk" onchange="applyInvFilters()"><option value="">全部</option><option>高</option><option>中</option><option>低</option></select></label>
+<label>只看需採購：<input type="checkbox" id="gNeed" onchange="applyInvFilters()"></label>
+<input class="keyword" id="gKw" placeholder="搜尋商品編號 / 商品名稱" onkeydown="if(event.key==='Enter')applyInvFilters()">
+<button class="btn btn-sm btn-yellow" onclick="applyInvFilters()">搜尋</button>
+<button class="btn btn-sm" onclick="resetInvFilters()">清除</button>
+</div>
+<div class="table-wrap"><table id="invTable">
+<thead><tr>
+<th data-k="最後進貨日">最後進貨日 ▲▼</th><th data-k="商品類別">類別 / 編號 / 名稱 ▲▼</th><th data-k="倉庫">倉庫 ▲▼</th><th data-k="目前庫存">現庫存 ▲▼</th><th data-k="安全庫存">安全庫存 ▲▼</th><th data-k="近30天銷量">近30天 ▲▼</th><th data-k="庫存金額">庫存金額 ▲▼</th><th data-k="缺貨風險">風險 ▲▼</th><th data-k="建議採購量">建議採購 ▲▼</th><th class="nosort">備註</th>
+</tr></thead><tbody></tbody>
+</table></div>
+<div class="pager"><button class="btn btn-sm" onclick="pageInv(-1)">上一頁</button><span id="pgInfoInv"></span><button class="btn btn-sm" onclick="pageInv(1)">下一頁</button></div>
+</div>
+<div class="hint">即時原理：前端直接呼叫 Google Sheets gviz JSON（與你貼的試算表同一份），試算表一改、按重新整理或等自動更新就會變。不需登入、不寫回試算表。若 Google 阻擋或離線，會自動改用 app.js 內建快取並標示狀態。更新時間顯示於右上角。</div>
+</div>
+</div>
+<script src="./app.js"></script>
+</body>
+</html>
